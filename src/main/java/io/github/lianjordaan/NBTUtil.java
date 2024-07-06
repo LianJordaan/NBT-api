@@ -1,10 +1,9 @@
 package io.github.lianjordaan;
 
 import com.sk89q.jnbt.*;
+import com.google.gson.*;
 
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class NBTUtil {
 
@@ -56,4 +55,62 @@ public class NBTUtil {
         }
         return "";
     }
+
+    public static CompoundTag fromJsonString(String jsonString) {
+        JsonElement jsonElement = JsonParser.parseString(jsonString);
+        if (jsonElement.isJsonObject()) {
+            return parseCompoundTag(jsonElement.getAsJsonObject());
+        }
+        throw new IllegalArgumentException("Invalid JSON string for NBT data");
+    }
+
+    private static CompoundTag parseCompoundTag(JsonObject jsonObject) {
+        Map<String, Tag> tagMap = new HashMap<>();
+        for (Map.Entry<String, JsonElement> entry : jsonObject.entrySet()) {
+            tagMap.put(entry.getKey(), parseTag(entry.getValue()));
+        }
+        return new CompoundTag(tagMap);
+    }
+
+    private static Tag parseTag(JsonElement jsonElement) {
+        if (jsonElement.isJsonObject()) {
+            return parseCompoundTag(jsonElement.getAsJsonObject());
+        } else if (jsonElement.isJsonArray()) {
+            return parseListTag(jsonElement.getAsJsonArray());
+        } else if (jsonElement.isJsonPrimitive()) {
+            JsonPrimitive primitive = jsonElement.getAsJsonPrimitive();
+            if (primitive.isBoolean()) {
+                return new ByteTag((byte) (primitive.getAsBoolean() ? 1 : 0));
+            } else if (primitive.isNumber()) {
+                Number number = primitive.getAsNumber();
+                if (number instanceof Byte) {
+                    return new ByteTag(number.byteValue());
+                } else if (number instanceof Short) {
+                    return new ShortTag(number.shortValue());
+                } else if (number instanceof Integer) {
+                    return new IntTag(number.intValue());
+                } else if (number instanceof Long) {
+                    return new LongTag(number.longValue());
+                } else if (number instanceof Float) {
+                    return new FloatTag(number.floatValue());
+                } else if (number instanceof Double) {
+                    return new DoubleTag(number.doubleValue());
+                }
+            } else if (primitive.isString()) {
+                return new StringTag(primitive.getAsString());
+            }
+        }
+        throw new IllegalArgumentException("Unsupported JSON element type for NBT data");
+    }
+
+    private static ListTag parseListTag(JsonArray jsonArray) {
+        List<Tag> tagList = new ArrayList<>();
+        for (JsonElement element : jsonArray) {
+            tagList.add(parseTag(element));
+        }
+        // Determine the type of the tags in the list
+        Class<? extends Tag> tagType = tagList.isEmpty() ? EndTag.class : tagList.get(0).getClass();
+        return new ListTag(tagType, tagList);
+    }
+
 }

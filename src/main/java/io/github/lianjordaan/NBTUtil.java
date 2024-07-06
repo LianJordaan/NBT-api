@@ -2,7 +2,6 @@ package io.github.lianjordaan;
 
 import com.sk89q.jnbt.*;
 import com.google.gson.*;
-
 import java.util.*;
 
 public class NBTUtil {
@@ -11,7 +10,6 @@ public class NBTUtil {
         if (tag instanceof CompoundTag) {
             CompoundTag compoundTag = (CompoundTag) tag;
             StringBuilder json = new StringBuilder("{");
-
             Set<Map.Entry<String, Tag>> entries = compoundTag.getValue().entrySet();
             for (Map.Entry<String, Tag> entry : entries) {
                 json.append("\"").append(entry.getKey()).append("\":").append(toJsonString(entry.getValue())).append(",");
@@ -81,26 +79,31 @@ public class NBTUtil {
             JsonPrimitive primitive = jsonElement.getAsJsonPrimitive();
             if (primitive.isBoolean()) {
                 return new ByteTag((byte) (primitive.getAsBoolean() ? 1 : 0));
-            } else if (primitive.isNumber()) {
-                Number number = primitive.getAsNumber();
-                if (number instanceof Byte) {
-                    return new ByteTag(number.byteValue());
-                } else if (number instanceof Short) {
-                    return new ShortTag(number.shortValue());
-                } else if (number instanceof Integer) {
-                    return new IntTag(number.intValue());
-                } else if (number instanceof Long) {
-                    return new LongTag(number.longValue());
-                } else if (number instanceof Float) {
-                    return new FloatTag(number.floatValue());
-                } else if (number instanceof Double) {
-                    return new DoubleTag(number.doubleValue());
-                }
             } else if (primitive.isString()) {
                 return new StringTag(primitive.getAsString());
+            } else if (primitive.isNumber()) {
+                Number number = primitive.getAsNumber();
+                // Here you should decide which type is suitable
+                if (number.doubleValue() == Math.floor(number.doubleValue()) && !Double.isInfinite(number.doubleValue())) {
+                    if (number.longValue() >= Byte.MIN_VALUE && number.longValue() <= Byte.MAX_VALUE) {
+                        return new ByteTag(number.byteValue());
+                    } else if (number.longValue() >= Short.MIN_VALUE && number.longValue() <= Short.MAX_VALUE) {
+                        return new ShortTag(number.shortValue());
+                    } else if (number.longValue() >= Integer.MIN_VALUE && number.longValue() <= Integer.MAX_VALUE) {
+                        return new IntTag(number.intValue());
+                    } else {
+                        return new LongTag(number.longValue());
+                    }
+                } else {
+                    if (number.floatValue() == number.doubleValue()) {
+                        return new FloatTag(number.floatValue());
+                    } else {
+                        return new DoubleTag(number.doubleValue());
+                    }
+                }
             }
         }
-        throw new IllegalArgumentException("Unsupported JSON element type for NBT data");
+        throw new IllegalArgumentException("Unsupported JSON element type for NBT data: " + jsonElement);
     }
 
     private static ListTag parseListTag(JsonArray jsonArray) {
@@ -112,5 +115,4 @@ public class NBTUtil {
         Class<? extends Tag> tagType = tagList.isEmpty() ? EndTag.class : tagList.get(0).getClass();
         return new ListTag(tagType, tagList);
     }
-
 }
